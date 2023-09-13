@@ -1,0 +1,1042 @@
+---
+format:
+  html:
+    theme: lumen
+---
+
+<style>
+    body .main-container {
+        max-width: 1920px !important;
+    }
+</style>
+
+
+
+```{r setup, include=FALSE}
+
+sets <- jsonlite::fromJSON("../settings.json")
+
+## Global options
+knitr::opts_chunk$set(
+    cache = F, 
+    echo = F, 
+    warning = F, 
+    message = F, 
+    cache.lazy = FALSE
+)
+
+
+# pacman::p_load(tidyverse, highcharter)
+library(tidyverse)
+library(highcharter)
+library(gt)
+
+
+
+options(scipen = 999)
+# print(getwd())
+# here::here("")
+# prCint(getwd())
+
+```
+
+
+
+```{r echo=FALSE, results='asis'}
+
+shiny::HTML(glue::glue('
+<style>
+#overlay {
+  position: fixed;
+  display: none;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 2;
+  cursor: pointer;
+  text-align: center;
+  padding-top: 10%;
+}
+
+#text {
+  position: relative;
+  top: 50%;
+  left: 50%;
+  font-size: 20px;
+  color: black;
+  transform: translate(-50%,-50%);
+  -ms-transform: translate(-50%,-50%);
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 50%;
+}
+</style>
+
+<div id="overlay" onclick="off()">
+  <div id="text">
+    <img src="wtm_logo_2020.png" alt="Logo" style="width:150px;height:150px;">
+    <h2>Welcome to the >>>sets$welcome<<<</h2>
+    <p>This dashboard aggregates data from the <a href="https://www.facebook.com/ads/library/" target="_blank">Meta Ad Library</a> to show how citizens are targeted during the >>>sets$election_title<<<.</p>
+    <p>If you want to know more about Who Targets Me and our work on ad transparency, visit us on <a href="https://www.whotargets.me/" target="_blank">whotargets.me</a>!</p>
+  </div>
+</div>
+
+<script>
+window.onload = function() {
+  var popupLastShown = localStorage.getItem("popupLastShown");
+  var now = new Date().getTime();
+
+  if (!popupLastShown || now - popupLastShown > 60*60*1000) {  // 60*60*1000 milliseconds = 1 hour
+    document.getElementById("overlay").style.display = "block";
+    localStorage.setItem("popupLastShown", now);
+  }
+}
+
+function off() {
+  document.getElementById("overlay").style.display = "none";
+}
+</script>
+', .open = ">>>", .close = "<<<"))
+
+
+
+
+```
+
+
+```{r}
+
+
+# source("../party_utils.R")
+color_dat <- tibble(
+  colors = c("#891139", "#74fd00", "#d82222", "#173a70", "#00bdff", "#b2c933", "#50168e", 
+             "#fca241", "#e30512", "#6f74a1", "#034b9f", "#005222", "#009de2", "#fdbb12"),
+  party = c("HLAS", "SASKA", "SMER", "KDH", "PS", "OLaNO", "D", 
+            "A-S", "R", "SNS", "SR", "LSNS", "Mod", "ZL"))
+
+
+
+scale_fill_parties <- function(...){
+    ggplot2:::manual_scale(
+        'fill', 
+        values = setNames(color_dat$colors, color_dat$party), 
+        ...
+    )
+}
+scale_color_parties <- function(...){
+    ggplot2:::manual_scale(
+        'color', 
+        values = setNames(color_dat$colors, color_dat$party), 
+        ...
+    )
+}
+
+source("../utils.R")
+```
+
+
+
+```{r}
+all_dat <- readRDS("../data/all_dat.rds")
+
+election_dat30 <- readRDS("../data/election_dat30.rds") %>%
+    # left_join(all_dat) %>% 
+  rename(internal_id = page_id)  %>% 
+  filter(is.na(no_data)) %>% 
+  filter(party != "And")
+
+
+election_dat7 <- readRDS("../data/election_dat7.rds") %>% 
+      # left_join(all_dat) %>% 
+  rename(internal_id = page_id) %>% 
+  filter(is.na(no_data)) %>% 
+  filter(party != "And")
+
+
+fin <- (as.Date(election_dat30$ds[1])-lubridate::days(1))
+begin7 <- fin-lubridate::days(6)
+begin30 <- fin-lubridate::days(29)
+
+tibble(fin,
+       begin7,
+       begin30) %>% 
+  write_csv("../data/dates.csv")
+
+
+last7days_string <- paste0(create_date(begin7), " - ", paste(create_date(fin), lubridate::year(fin)))
+last30days_string <- paste0(create_date(begin30), " - ", paste(create_date(fin), lubridate::year(fin)))
+
+tibble(last7days = last7days_string,
+       last30days = last30days_string) %>% 
+  write_csv("../data/lastdays.csv")
+
+the_currency <- election_dat30 %>% 
+  count(main_currency, sort = T) %>% 
+  slice(1) %>% 
+  pull(main_currency)
+
+if(the_currency == "EUR"){
+  currency_symbol <- "€"
+} else {
+  currency_symbol <- "CURRENCY"
+}
+
+  # election_dat7 %>% count(page_name, party)
+```
+
+
+
+
+```{r}
+
+total_spend_id <- election_dat30 %>% 
+    filter(main_currency == the_currency) %>% 
+  distinct(internal_id, .keep_all = T) %>% 
+  group_by(party) %>% 
+  summarize(total_spend_formatted = sum(total_spend_formatted)) %>% 
+  ungroup() 
+```
+
+
+
+```{r}
+sum30 <- election_dat30 %>% 
+    filter(main_currency == the_currency) %>% 
+    distinct(internal_id, .keep_all = T) %>% 
+    summarize(total_spend_formatted = sum(total_spend_formatted),
+              total_num_ads = sum(total_num_ads))
+
+sum7 <- election_dat7 %>% 
+    filter(main_currency == the_currency) %>% 
+    distinct(internal_id, .keep_all = T) %>% 
+    summarize(total_spend_formatted = sum(total_spend_formatted),
+              total_num_ads = sum(total_num_ads))
+
+add_ribbons <- function(x, adv, col) {
+   x %>% 
+  # tab_options(table.width = pct(100)) %>%
+  tab_style(
+    style = cell_borders(
+      sides = c("left"),
+      color = col,
+      weight = px(18.5),
+      style = "solid"
+    ),
+    locations = cells_body(
+      columns = `Number of Advertisers`,
+      rows = adv
+    ))
+}
+
+add_ribbons2 <- function(x, adv, col) {
+   x %>% 
+  # tab_options(table.width = pct(100)) %>%
+  tab_style(
+    style = cell_borders(
+      sides = c("left"),
+      color = col,
+      weight = px(18.5),
+      style = "solid"
+    ),
+    locations = cells_body(
+      columns = `Number of Ads`,
+      rows = adv
+    ))
+}
+
+
+add_ribbons3 <- function(x, adv, col) {
+   x %>% 
+  # tab_options(table.width = pct(100)) %>%
+  tab_style(
+    style = cell_borders(
+      sides = c("left"),
+      color = col,
+      weight = px(18.5),
+      style = "solid"
+    ),
+    locations = cells_body(
+      columns = `Total Spend`,
+      rows = adv
+    ))
+}
+```
+
+
+# `r sets$election_title`
+
+This section shows *total* and *daily spending* of political parties in the run-up to the `r sets$election_title` for the latest available data.
+
+# Topline Statistics
+
+::: {.panel-tabset}
+
+
+## <img src="img/meta.svg" height="24px"> Meta
+
+
+::: {.panel-tabset}
+
+### `r last30days_string` (Last 30 days)
+
+
+In total, political parties spend `r paste0(currency_symbol, scales::comma_format()(sum30$total_spend_formatted))` and ran `r sum30$total_num_ads` ads on Meta in this period.
+
+
+```{r}
+
+get_table_dat <- function(x, var) {
+    
+
+x %>% 
+    filter(main_currency == the_currency) %>% 
+        distinct(internal_id, .keep_all = T) %>% 
+    group_by({{ var }}) %>% 
+    summarize(total_num_ads = n()) %>% 
+    drop_na() %>% 
+    mutate(total_num_ads = scales::comma(total_num_ads)) %>%
+    pivot_wider(names_from = {{ var }}, values_from = total_num_ads) %>% 
+    mutate(`party_col` = "Number of Advertisers") %>% 
+    bind_rows(x %>% 
+    filter(main_currency == the_currency) %>% 
+        distinct(internal_id, .keep_all = T) %>% 
+        group_by({{ var }}) %>% 
+        arrange(desc(total_spend_formatted)) %>% 
+        slice(1:3) %>% 
+        mutate(total_spend_formatted = scales::comma(total_spend_formatted)) %>%
+        mutate(n_words = str_count(page_name, " ")) %>% 
+        mutate(lab = paste0(page_name, " (",currency_symbol, total_spend_formatted, ")")) %>%
+        select({{ var }}, lab) %>% 
+        drop_na() %>% 
+        summarize(lab = paste0("<br>", 1:n(), ". ", lab, collapse = "")) %>% 
+        pivot_wider(names_from = {{ var }}, values_from = lab) %>% 
+        mutate(`party_col` = "Top Spenders"))  %>% 
+    bind_rows(
+        x %>% 
+            distinct(internal_id, .keep_all = T) %>% 
+            group_by({{ var }}) %>% 
+            summarize(total_num_ads = sum(total_num_ads)) %>% 
+            drop_na() %>% 
+            mutate(total_num_ads = scales::comma(total_num_ads)) %>% 
+            pivot_wider(names_from = {{ var }}, values_from = total_num_ads) %>% 
+            mutate(`party_col` = "Number of Ads")) %>% 
+    bind_rows(
+        x %>% 
+            distinct(internal_id, .keep_all = T) %>% 
+            group_by({{ var }}) %>% 
+            summarize(total_spend_formatted = sum(total_spend_formatted)) %>% 
+            mutate(total_spend_formatted = scales::comma(total_spend_formatted)) %>% 
+        mutate(total_spend_formatted = paste0(currency_symbol, total_spend_formatted)) %>% 
+            drop_na() %>% 
+            pivot_wider(names_from = {{ var }}, values_from = total_spend_formatted) %>% 
+            mutate(`party_col` = "Total Spend") ) %>% 
+    t() %>% 
+    as.data.frame() %>% 
+    rownames_to_column("party_col") %>% 
+    set_names(.[nrow(.),] %>% as.character()) %>% 
+    slice(1:(n()-1)) 
+    
+}
+
+the_table30 <- get_table_dat(election_dat30, party) %>% 
+  arrange(desc(parse_number(`Total Spend`))) 
+
+
+add_ribbons_code <- the_table30 %>%
+  left_join(color_dat %>% mutate(party_col = party)) %>% 
+  mutate(ribbons_code = sprintf("add_ribbons(\"%s\", \"%s\")", party_col, colors)) %>%
+  pull(ribbons_code) %>%
+  # paste(collapse = "\n") %>%
+  paste(collapse = "%>%")  # Add pipe after each ribbon
+
+eval(parse(text = paste0("gt(the_table30, rowname_col = 'party_col') %>% fmt_markdown(columns = everything()) %>% cols_align(align = \"center\") %>% gtExtras::gt_theme_538() %>% ", add_ribbons_code)))
+
+```
+
+
+
+
+### `r last7days_string` (Last 7 days)
+
+In total, political parties spend `r paste0(currency_symbol,scales::comma_format()(sum7$total_spend_formatted))` and ran `r sum7$total_num_ads` ads on Meta in this period.
+
+
+
+```{r}
+
+the_table7 <- get_table_dat(election_dat7, party) %>%
+  arrange(desc(parse_number(`Total Spend`)))
+
+
+add_ribbons_code <- the_table7 %>%
+  left_join(color_dat %>% mutate(party_col = party)) %>%
+  mutate(ribbons_code = sprintf("add_ribbons(\"%s\", \"%s\")", party_col, colors)) %>%
+  pull(ribbons_code) %>%
+  # paste(collapse = "\n") %>%
+  paste(collapse = "%>%")  # Add pipe after each ribbon
+
+eval(parse(text = paste0("gt(the_table7, rowname_col = 'party_col') %>% fmt_markdown(columns = everything()) %>% cols_align(align = \"center\") %>% gtExtras::gt_theme_538() %>% ", add_ribbons_code)))
+
+```
+
+::: 
+
+
+
+
+
+
+## ![](img/g.svg) Google
+
+
+
+
+```{r, fig.width=12, fig.height=8, dpi=300}
+ggl_daily <- readRDS("../data/ggl_daily_spending.rds") 
+ggl_spend <- readRDS("../data/ggl_spend.rds") %>%
+  filter(!(str_detect(Advertiser_Name, "Slovensk. demokratick|FDP|Gleichheitspartei|Nieuw-Vlaamse|SP Digital LLC|MURRAY|REVOLT|Angelenos Against Higher Property Taxes|ITALIA|Volt Deutschland"))) 
+
+
+
+# plotly::ggplotly(ht)
+ 
+ 
+  # ggl_daily %>%
+  #   rename(Advertiser_ID = advertiser_id) %>%
+  #   left_join(ggl_spend %>% distinct(Advertiser_ID, party1)) %>% 
+  #   janitor::clean_names()  %>% 
+  #   rename(party = party1) %>% 
+  #   mutate(date_produced = lubridate::ymd(date)) %>%
+  #   mutate(spend = readr::parse_number(str_remove(eur_amount, "\\."))) %>%  
+  #   group_by(date_produced, party) %>% 
+  #   summarize(spend  = sum(spend)) %>% 
+  #   ungroup() %>% 
+  #  mutate(party = ifelse(party == "JA21", "Ja21", party)) %>% 
+  #   group_by(party) %>% 
+  #   summarize(spend = sum(spend))
+```
+
+
+```{r}
+ggl_all <- readRDS("../data/ggl_all.rds")
+ggl_all7 <- readRDS("../data/ggl_all7.rds")
+
+sum30_ggl <- ggl_all %>% 
+    mutate(total_spend_formatted = parse_number(`Total Spend`)) %>% 
+    # distinct(internal_id, .keep_all = T) %>% 
+    summarize(total_spend_formatted = sum(total_spend_formatted),
+              total_num_ads = sum(as.numeric(`Number of Ads`)))
+
+sum7_ggl <- ggl_all7 %>% 
+    mutate(total_spend_formatted = parse_number(`Total Spend`)) %>% 
+    # distinct(internal_id, .keep_all = T) %>% 
+    summarize(total_spend_formatted = sum(total_spend_formatted),
+              total_num_ads = sum(as.numeric(`Number of Ads`)))
+
+```
+
+
+::: {.panel-tabset}
+
+
+
+### `r last30days_string` (Last 30 days)
+
+
+In total, political parties spent €`r scales::comma_format()(sum30_ggl$total_spend_formatted)` and ran `r sum30_ggl$total_num_ads` ad copies on Google in this timeframe.
+
+```{r}
+
+ 
+
+
+add_ribbons_code <- ggl_all %>% 
+  left_join(color_dat %>% mutate(party_col = party)) %>% 
+  mutate(ribbons_code = sprintf("add_ribbons2(\"%s\", \"%s\")", party_col, colors)) %>%
+  pull(ribbons_code) %>%
+  # paste(collapse = "\n") %>%
+  paste(collapse = "%>%")  # Add pipe after each ribbon
+
+eval(parse(text = paste0("gt(ggl_all, rowname_col = 'party_col') %>% fmt_markdown(columns = everything()) %>% cols_align(align = \"center\") %>% gtExtras::gt_theme_538() %>% ", add_ribbons_code)))
+
+# debugonce(get_table_dat)
+
+```
+
+### `r last7days_string` (Last 7 days)
+
+In total, political parties spent €`r scales::comma_format()(sum7_ggl$total_spend_formatted)` and ran `r sum7_ggl$total_num_ads` ad copies on Google in this timeframe.
+
+
+```{r}
+
+
+add_ribbons_code <- ggl_all7 %>% 
+  left_join(color_dat %>% mutate(party_col = party)) %>% 
+  mutate(ribbons_code = sprintf("add_ribbons2(\"%s\", \"%s\")", party_col, colors)) %>%
+  pull(ribbons_code) %>%
+  # paste(collapse = "\n") %>%
+  paste(collapse = "%>%")  # Add pipe after each ribbon
+
+eval(parse(text = paste0("gt(ggl_all7, rowname_col = 'party_col') %>% fmt_markdown(columns = everything()) %>% cols_align(align = \"center\") %>% gtExtras::gt_theme_538() %>% ", add_ribbons_code)))
+
+```
+
+
+::: 
+
+## `r fontawesome::fa("bolt", fill = "lightblue")` Combined
+
+
+
+```{r, fig.width=12, fig.height=8, dpi=300}
+
+
+
+# plotly::ggplotly(ht)
+ 
+ 
+  # ggl_daily %>%
+  #   rename(Advertiser_ID = advertiser_id) %>%
+  #   left_join(ggl_spend %>% distinct(Advertiser_ID, party1)) %>% 
+  #   janitor::clean_names()  %>% 
+  #   rename(party = party1) %>% 
+  #   mutate(date_produced = lubridate::ymd(date)) %>%
+  #   mutate(spend = readr::parse_number(str_remove(eur_amount, "\\."))) %>%  
+  #   group_by(date_produced, party) %>% 
+  #   summarize(spend  = sum(spend)) %>% 
+  #   ungroup() %>% 
+  #  mutate(party = ifelse(party == "JA21", "Ja21", party)) %>% 
+  #   group_by(party) %>% 
+  #   summarize(spend = sum(spend))
+```
+
+
+
+```{r}
+sum30_comb <-  sum30_ggl %>% 
+    bind_rows(sum30) %>% 
+    summarize(total_spend_formatted = sum(total_spend_formatted),
+              total_num_ads = sum(total_num_ads))
+
+sum7_comb <-  sum7_ggl %>% 
+    bind_rows(sum7) %>% 
+    summarize(total_spend_formatted = sum(total_spend_formatted),
+              total_num_ads = sum(total_num_ads))
+
+
+```
+
+
+::: {.panel-tabset}
+
+
+
+### `r last30days_string` (Last 30 days)
+
+
+In total, political parties spent €`r scales::comma_format()(sum30_comb$total_spend_formatted)` and ran `r sum30_comb$total_num_ads` ad copies on digital platforms in this timeframe.
+
+```{r}
+
+ 
+all_spending <-  ggl_all %>% 
+  bind_rows(the_table30) %>%
+  select(-`Top Spenders`, -`Number of Advertisers`) %>% 
+  mutate(`Total Spend` = parse_number(`Total Spend`)) %>% 
+  mutate(`Number of Ads` = parse_number(`Number of Ads`)) %>% 
+  group_by(party_col) %>% 
+  summarize(`Total Spend` = sum(`Total Spend`),
+            `Number of Ads` = sum(`Number of Ads`)) %>% 
+  ungroup() %>% 
+  arrange(desc(`Total Spend`)) %>% 
+            mutate(`Total Spend` = scales::comma(`Total Spend`)) %>% 
+        mutate(`Total Spend` = paste0(currency_symbol, `Total Spend`)) %>% 
+            drop_na()  
+  
+
+add_ribbons_code <- all_spending %>% 
+  left_join(color_dat %>% mutate(party_col = party)) %>% 
+  arrange(desc(`Total Spend`)) %>% 
+  mutate(ribbons_code = sprintf("add_ribbons3(\"%s\", \"%s\")", party_col, colors)) %>%
+  pull(ribbons_code) %>%
+  # paste(collapse = "\n") %>%
+  paste(collapse = "%>%")  # Add pipe after each ribbon
+
+eval(parse(text = paste0("gt(all_spending, rowname_col = 'party_col') %>% fmt_markdown(columns = everything()) %>% cols_align(align = \"center\") %>% gtExtras::gt_theme_538() %>% ", add_ribbons_code)))
+
+# debugonce(get_table_dat)
+
+```
+
+### `r last7days_string` (Last 7 days)
+
+In total, political parties spent €`r scales::comma_format()(sum7_comb$total_spend_formatted)` and ran `r sum7_comb$total_num_ads` ads on digital platforms in this timeframe.
+
+
+```{r}
+
+
+
+all_spending7 <-  ggl_all7 %>% 
+  bind_rows(the_table7) %>%
+  select(-`Top Spenders`, -`Number of Advertisers`) %>% 
+  mutate(`Total Spend` = parse_number(`Total Spend`)) %>% 
+  mutate(`Number of Ads` = parse_number(`Number of Ads`)) %>% 
+  group_by(party_col) %>% 
+  summarize(`Total Spend` = sum(`Total Spend`),
+            `Number of Ads` = sum(`Number of Ads`)) %>% 
+  ungroup() %>% 
+  arrange(desc(`Total Spend`)) %>% 
+            mutate(`Total Spend` = scales::comma(`Total Spend`)) %>% 
+        mutate(`Total Spend` = paste0(currency_symbol, `Total Spend`)) %>% 
+            drop_na()  
+  
+
+add_ribbons_code <- all_spending7 %>% 
+  left_join(color_dat %>% mutate(party_col = party)) %>% 
+  arrange(desc(`Total Spend`)) %>% 
+  mutate(ribbons_code = sprintf("add_ribbons3(\"%s\", \"%s\")", party_col, colors)) %>%
+  pull(ribbons_code) %>%
+  # paste(collapse = "\n") %>%
+  paste(collapse = "%>%")  # Add pipe after each ribbon
+
+eval(parse(text = paste0("gt(all_spending7, rowname_col = 'party_col') %>% fmt_markdown(columns = everything()) %>% cols_align(align = \"center\") %>% gtExtras::gt_theme_538() %>% ", add_ribbons_code)))
+
+
+```
+
+
+
+::: 
+
+::: 
+
+
+
+# Spending over Time
+
+::: {.panel-tabset}
+
+
+## <img src="img/meta.svg" height="24px"> Meta
+
+
+
+::: {.panel-tabset}
+
+
+### Cumulative
+
+```{r, out.width="100%"}
+more_data <- readr::read_rds("../lifelong/SK.rds")  %>%
+    mutate(date_produced = lubridate::ymd(date)) %>%
+  drop_na(date_produced) %>% 
+    janitor::clean_names()%>% #rename(advertiser_id = page_id) %>%
+    mutate(spend = readr::parse_number(as.character(amount_spent_eur))) %>%
+    # mutate(spend = ifelse(spend == 100, 50, spend)) %>%
+    # distinct(page_id, .keep_all = T) %>%
+    filter(str_detect(page_name, "Global Space Conference on Climate Change|de Alliantie|PvdA - GroenLinks", negate = T)) %>%
+    mutate(page_id = as.character(page_id)) %>% 
+  # filter(cntry == "NL") %>% 
+  filter(date_produced >= lubridate::as_date("2023-08-01"))
+
+
+# me_advertisers <- read_csv("../data/wtm-advertisers-gr-2023-05-20T08_49_00.571Z.csv")
+hc_data_cum_raw <-  more_data %>%
+  # mutate(advertiser_id = as.character(advertiser_id)) %>%
+    left_join(election_dat30 %>%
+                distinct(internal_id, party) %>% 
+                  select(page_id = internal_id, party)) %>%
+    drop_na(party) %>%
+    group_by(date_produced, party) %>%
+    summarize(spend  = sum(spend)) %>%
+    ungroup() %>%
+  # spread(key = party, value = spend, fill = 0) %>%
+  # arrange(date_produced) %>%
+  # mutate(across(starts_with("50PLUS"):(last_col()), ~cumsum(.), .names = "cumulative_{.col}")) %>%
+  # select(date_produced, starts_with("cumulative")) %>%
+  # rename_with(~str_remove(., "cumulative_"), starts_with("cumulative")) %>%
+  # pivot_longer(-date_produced, names_to = "party", values_to = "spend")  %>%
+  group_by(party) %>%
+  mutate(total_spend = max(spend)) %>%
+  ungroup()  %>%
+  left_join(color_dat) %>%
+  mutate(party = as.factor(party)) %>%
+  mutate(party = fct_reorder(party, total_spend))
+
+# saveRDS(hc_data, "../data/hc_data.rds")
+
+color_order <- hc_data_cum_raw %>%
+  distinct(party, .keep_all = T) %>%
+  arrange(party) %>%
+  pull(colors)
+
+# more_data %>% 
+  # mutate(date_produced = lubridate::ymd(date)) %>%
+  # drop_na(date_produced) %>% 
+  # janitor::clean_names() %>% 
+  # distinct(cntry, date_produced, .keep_all = T) %>% 
+  # count(date_produced) %>%
+  # ggplot(aes(date_produced, n)) +
+  # geom_col() +
+  # theme_minimal() +
+  # labs(y = "How many Countries", x = "For each date")
+
+
+```
+
+
+
+```{r, out.width="100%"}
+
+
+hc_data_cumfb <- hc_data_cum_raw %>%
+  mutate(Date = date_produced) %>%
+  group_by(party) %>%  # Assuming you have a 'party' column
+  arrange(Date) %>% 
+  mutate(`Daily Spend` = spend - first(spend)) %>%
+  ungroup() 
+
+hc_data_cumfb %>% 
+  # mutate(spend)
+  hchart("area", hcaes(x = Date, y = `Daily Spend`, group = party, fill = colors)) %>%
+  hc_plotOptions(    area = list(
+      stacking = "normal",
+      lineWidth = 1,
+      marker = list(enabled = FALSE)
+    )) %>%
+  # hc_legend(share = TRUE)%>%
+  hc_colors(color_order)%>%
+  hc_tooltip(
+    shared = TRUE,
+    positioner = JS("function (labelWidth, labelHeight, point) {
+        return { x: 200, y: this.chart.plotTop };
+    }")
+  )
+
+
+
+```
+
+
+
+### Daily
+
+
+
+```{r, out.width="100%"}
+
+# Compute global minimum and maximum date
+hc_data_dafb <- hc_data_cum_raw %>%
+  mutate(Date = date_produced) %>%
+  group_by(party) %>%  # Assuming you have a 'party' column
+  arrange(Date) %>%  # Ensure the data is in the correct order
+  mutate(`Daily Spend` = spend - lag(spend, default = first(spend))) %>%
+  ungroup() 
+
+hc_data_dafb %>% 
+  # mutate(spend)
+  hchart("area", hcaes(x = Date, y = `Daily Spend`, group = party, fill = colors)) %>%
+  hc_plotOptions(    area = list(
+      stacking = "normal",
+      lineWidth = 1,
+      marker = list(enabled = FALSE)
+    )) %>%
+  # hc_legend(share = TRUE)%>%
+  hc_colors(color_order)%>%
+  hc_tooltip(
+    shared = TRUE,
+    positioner = JS("function (labelWidth, labelHeight, point) {
+        return { x: 200, y: this.chart.plotTop };
+    }")
+  )  %>%
+   hc_chart(events = list(load = JS("function() {
+   var chart = this;
+   chart.series[0].setVisible(false)
+   chart.series[1].setVisible(false)
+   chart.series[2].setVisible(false)
+   chart.series[3].setVisible(false)
+   chart.series[4].setVisible(false)
+   }"))) 
+# hc_colors(levels(hc_data$party))
+# hc_colors(color_dat$colors[as.character(unique(hc_data$party))])
+
+# color_dat$colors[levels(hc_data$party)]
+
+# more_data %>% 
+#   count(date_produced)
+```
+
+::: 
+
+
+
+## ![](img/g.svg) Google
+
+
+::: {.panel-tabset}
+
+
+
+### Cumulative
+
+```{r, out.width="100%"}
+
+
+
+hc_data_cumggl <-  ggl_daily %>%
+    rename(Advertiser_ID = advertiser_id) %>%
+    left_join(ggl_spend  %>%
+  filter(!(str_detect(Advertiser_Name, "Slovensk. demokratick|FDP|Gleichheitspartei|Nieuw-Vlaamse|SP Digital LLC|MURRAY|REVOLT|Angelenos Against Higher Property Taxes|ITALIA|Volt Deutschland"))) %>% distinct(Advertiser_ID, party1)) %>% 
+    janitor::clean_names()  %>% 
+    rename(party = party1) %>% 
+    mutate(date_produced = lubridate::ymd(date)) %>%
+    mutate(spend = readr::parse_number(str_remove(eur_amount, "\\."))) %>%  
+    group_by(date_produced, party) %>% 
+    summarize(spend  = sum(spend)) %>% 
+    ungroup() %>% 
+   mutate(party = ifelse(party == "JA21", "Ja21", party))  %>%
+  group_by(party) %>%
+  mutate(total_spend = max(spend)) %>%
+  ungroup()  %>%
+  left_join(color_dat, by = "party") %>%
+  mutate(party = as.factor(party)) %>% 
+  mutate(party = fct_reorder(party, total_spend)) %>%
+  group_by(party) %>%
+  arrange(date_produced) %>% 
+  mutate(spend = cumsum(spend)) %>%
+  ungroup() %>%
+  drop_na(party)
+
+# saveRDS(hc_data, "data/hc_data.rds")
+
+color_order <- hc_data_cumggl %>% 
+  distinct(party, .keep_all = T) %>% 
+  arrange(party) %>% 
+  pull(colors)
+
+
+hc_data_cumggl  %>% 
+  mutate(`Daily Spend` = spend) %>% 
+  mutate(Date = date_produced) %>% 
+  hchart("area", hcaes(x = Date, y = `Daily Spend`, group = party, fill = colors)) %>%
+  hc_plotOptions(    area = list(
+      stacking = "normal",
+      lineWidth = 1,
+      marker = list(enabled = FALSE)
+    )) %>%
+  # hc_legend(share = TRUE)%>%
+  hc_colors(color_order)%>%
+  # hc_chart(events = list(load = JS("function() {
+  # var chart = this;
+  # chart.series[0].setVisible(false)
+  # chart.series[1].setVisible(false)
+  # chart.series[2].setVisible(false)
+  # chart.series[3].setVisible(false)
+  # chart.series[4].setVisible(false)
+  # chart.series[5].setVisible(false)
+  # }"))) %>%
+  hc_tooltip(
+    shared = TRUE,
+    positioner = JS("function (labelWidth, labelHeight, point) {
+        return { x: 200, y: this.chart.plotTop };
+    }")
+  ) 
+```
+
+
+### Daily
+
+```{r, out.width="100%"}
+
+
+
+hc_data_daggl <-   ggl_daily %>%
+    rename(Advertiser_ID = advertiser_id) %>%
+    left_join(ggl_spend  %>%
+  filter(!(str_detect(Advertiser_Name, "Slovensk. demokratick|FDP|Gleichheitspartei|Nieuw-Vlaamse|SP Digital LLC|MURRAY|REVOLT|Angelenos Against Higher Property Taxes|ITALIA|Volt Deutschland"))) %>% distinct(Advertiser_ID, party1)) %>% 
+    janitor::clean_names()  %>% 
+    rename(party = party1)  %>% 
+    mutate(date_produced = lubridate::ymd(date)) %>%
+    mutate(spend = readr::parse_number(str_remove(eur_amount, "\\."))) %>%  
+    group_by(date_produced, party) %>% 
+    summarize(spend  = sum(spend)) %>% 
+    ungroup() %>% 
+   mutate(party = ifelse(party == "JA21", "Ja21", party))  %>%
+  group_by(party) %>%
+  mutate(total_spend = max(spend)) %>%
+  ungroup()  %>%
+  left_join(color_dat, by = "party") %>%
+  mutate(party = as.factor(party)) %>% 
+  mutate(party = fct_reorder(party, total_spend)) %>% 
+  drop_na(party)
+
+# saveRDS(hc_data, "data/hc_data.rds")
+
+color_order <- hc_data_daggl %>% 
+  distinct(party, .keep_all = T) %>% 
+  arrange(party) %>% 
+  pull(colors)
+
+
+hc_data_daggl %>%
+  mutate(`Daily Spend` = spend) %>% 
+  mutate(Date = date_produced) %>% 
+  hchart("area", hcaes(x = Date, y = `Daily Spend`, group = party, fill = colors)) %>%
+  hc_plotOptions(    area = list(
+      stacking = "normal",
+      lineWidth = 1,
+      marker = list(enabled = FALSE)
+    )) %>%
+  # hc_legend(share = TRUE)%>%
+  hc_colors(color_order)%>%
+  # hc_chart(events = list(load = JS("function() {
+  # var chart = this;
+  # chart.series[0].setVisible(false)
+  # chart.series[1].setVisible(false)
+  # chart.series[2].setVisible(false)
+  # chart.series[3].setVisible(false)
+  # chart.series[4].setVisible(false)
+  # chart.series[5].setVisible(false)
+  # }"))) %>%
+  hc_tooltip(
+    shared = TRUE,
+    positioner = JS("function (labelWidth, labelHeight, point) {
+        return { x: 200, y: this.chart.plotTop };
+    }")
+  ) 
+```
+
+
+
+
+::: 
+
+
+
+## `r fontawesome::fa("bolt", fill = "lightblue")` Combined
+
+
+::: {.panel-tabset}
+
+
+
+### Cumulative
+
+```{r, out.width="100%"}
+
+
+hc_data_cum <- hc_data_cumfb %>% 
+  mutate(spend = `Daily Spend`) %>% 
+  mutate(platform = "Meta") %>% 
+  bind_rows(hc_data_cumggl%>% 
+  mutate(platform = "Google")) %>% 
+  filter(date_produced <= max(hc_data_cumfb$date_produced)) %>% 
+  group_by(date_produced, party, colors) %>% 
+  summarise(spend = sum(spend)) %>% 
+  ungroup()
+
+color_order <- hc_data_cum %>% 
+  distinct(party, .keep_all = T) %>% 
+  arrange(party) %>% 
+  pull(colors)
+
+
+hc_data_cum %>%
+  # group_by(party) %>%
+  # arrange(date_produced) %>% 
+  # mutate(spend = cumsum(spend)) %>%
+  # ungroup() %>% 
+  mutate(`Daily Spend` = spend) %>% 
+  mutate(Date = date_produced) %>% 
+  hchart("area", hcaes(x = Date, y = `Daily Spend`, group = party, fill = colors)) %>%
+  hc_plotOptions(    area = list(
+      stacking = "normal",
+      lineWidth = 1,
+      marker = list(enabled = FALSE)
+    )) %>%
+  # hc_legend(share = TRUE)%>%
+  hc_colors(color_order)%>%
+  # hc_chart(events = list(load = JS("function() {
+  # var chart = this;
+  # chart.series[0].setVisible(false)
+  # chart.series[1].setVisible(false)
+  # chart.series[2].setVisible(false)
+  # chart.series[3].setVisible(false)
+  # chart.series[4].setVisible(false)
+  # chart.series[5].setVisible(false)
+  # }"))) %>%
+  hc_tooltip(
+    shared = TRUE,
+    positioner = JS("function (labelWidth, labelHeight, point) {
+        return { x: 200, y: this.chart.plotTop };
+    }")
+  ) 
+```
+
+
+### Daily
+
+```{r, out.width="100%"}
+
+
+hc_data_da <- hc_data_daggl %>% 
+  mutate(platform = "Google") %>% 
+  bind_rows(hc_data_dafb%>% 
+  mutate(platform = "Meta")%>% 
+  mutate(spend = `Daily Spend`)) %>% 
+  filter(date_produced <= max(hc_data_dafb$date_produced)) %>% 
+  group_by(date_produced, party, colors) %>% 
+  summarise(spend = sum(spend)) %>% 
+  ungroup()
+
+# saveRDS(hc_data, "data/hc_data.rds")
+
+color_order <- hc_data_da %>% 
+  distinct(party, .keep_all = T) %>% 
+  arrange(party) %>% 
+  pull(colors)
+
+
+hc_data_da %>%
+  mutate(`Daily Spend` = spend) %>% 
+  mutate(Date = date_produced) %>% 
+  hchart("area", hcaes(x = Date, y = `Daily Spend`, group = party, fill = colors)) %>%
+  hc_plotOptions(    area = list(
+      stacking = "normal",
+      lineWidth = 1,
+      marker = list(enabled = FALSE)
+    )) %>%
+  # hc_legend(share = TRUE)%>%
+  hc_colors(color_order)%>%
+  # hc_chart(events = list(load = JS("function() {
+  # var chart = this;
+  # chart.series[0].setVisible(false)
+  # chart.series[1].setVisible(false)
+  # chart.series[2].setVisible(false)
+  # chart.series[3].setVisible(false)
+  # chart.series[4].setVisible(false)
+  # chart.series[5].setVisible(false)
+  # }"))) %>%
+  hc_tooltip(
+    shared = TRUE,
+    positioner = JS("function (labelWidth, labelHeight, point) {
+        return { x: 200, y: this.chart.plotTop };
+    }")
+  ) 
+```
+
+
+
+::: 
+
+
+::: 
+
+
