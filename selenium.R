@@ -165,7 +165,7 @@ retrieve_spend_daily <- function(id, the_date, cntry = "NL") {
 timelines <- seq.Date(as.Date("2023-08-01"), lubridate::today()-lubridate::days(1), by = "day")
 
 # 
-# daily_spending_old <- readRDS("data/ggl_daily_spending.rds")
+daily_spending_old <- readRDS("data/ggl_daily_spending.rds")
 
 
 daily_spending <- expand_grid(unique(ggl_spend$Advertiser_ID), timelines) %>%
