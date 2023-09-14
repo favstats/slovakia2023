@@ -16,6 +16,7 @@ pacman::p_load(
   dplyr,
   stringr,
   lubridate,
+  tibble,
   scales,
   purrr,
   glue,
