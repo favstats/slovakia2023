@@ -821,7 +821,7 @@ region_dat <- election_dat30 %>%
             num_ads = sum(num_ads)) %>%
   ungroup() %>%
   rename(region = value) %>%
-  mutate(region = str_remove_all(region, ", Netherlands")) 
+  mutate(region = str_remove_all(region, ", Slovakia")) 
 
 the_colors <- region_dat %>% 
   group_by(party) %>% 
@@ -920,7 +920,7 @@ region_dat <- election_dat30 %>%
             num_ads = sum(num_ads)) %>%
   ungroup() %>%
   rename(region = value) %>%
-  mutate(region = str_remove_all(region, ", Netherlands")) 
+  mutate(region = str_remove_all(region, ", Slovakia")) 
 
 the_colors <- region_dat %>% 
   group_by(party) %>% 
@@ -995,7 +995,7 @@ region_dat <- election_dat30 %>%
             num_ads = sum(num_ads)) %>%
   ungroup() %>%
   rename(region = value) %>%
-  mutate(region = str_remove_all(region, ", Netherlands")) 
+  mutate(region = str_remove_all(region, ", Slovakia")) 
 
 the_colors <- region_dat %>% 
   group_by(party) %>% 
@@ -1055,7 +1055,7 @@ region_dat <- election_dat30 %>%
             num_ads = sum(num_ads)) %>%
   ungroup() %>%
   rename(region = value) %>%
-  mutate(region = str_remove_all(region, ", Netherlands")) 
+  mutate(region = str_remove_all(region, ", Slovakia")) 
 
 the_colors <- region_dat %>% 
   group_by(party) %>% 

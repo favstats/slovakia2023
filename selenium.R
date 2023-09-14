@@ -191,7 +191,7 @@ retrieve_spend_custom <- function(id, from, to, cntry = "NL") {
   
   # id <- "AR18091944865565769729"
   url <- glue::glue("https://adstransparency.google.com/advertiser/{id}?political&region={cntry}&start-date={from}&end-date={to}")
-  remDr$navigate(url)
+  # remDr$navigate(url)
   
   
   page_df %>%
