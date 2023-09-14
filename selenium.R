@@ -175,14 +175,14 @@ daily_spending <- expand_grid(unique(ggl_spend$Advertiser_ID), timelines) %>%
   split(1:nrow(.)) %>%
   map_dfr_progress(~{retrieve_spend_daily(.x$advertiser_id, .x$timelines)})
 
-missings <- expand_grid(unique(ggl_spend$Advertiser_ID), timelines) %>%
-  set_names(c("advertiser_id", "timelines")) %>%
-  anti_join(daily_spending %>% rename(timelines = date))  %>%
-  split(1:nrow(.)) %>%
-  map_dfr_progress(~{retrieve_spend_daily(.x$advertiser_id, .x$timelines)})
+# missings <- expand_grid(unique(ggl_spend$Advertiser_ID), timelines) %>%
+#   set_names(c("advertiser_id", "timelines")) %>%
+#   anti_join(daily_spending %>% rename(timelines = date))  %>%
+#   split(1:nrow(.)) %>%
+#   map_dfr_progress(~{retrieve_spend_daily(.x$advertiser_id, .x$timelines)})
 
 
-saveRDS(daily_spending %>% bind_rows(missings) %>% bind_rows(daily_spending_old) %>% distinct(), file = "data/ggl_daily_spending.rds")
+saveRDS(daily_spending %>% bind_rows(daily_spending_old) %>% distinct(), file = "data/ggl_daily_spending.rds")
 
 
 dates <- read_csv("data/dates.csv")
