@@ -59,8 +59,6 @@ jobs:
         shell: Rscript {0}
       - name: "Script - Run"
         run: Rscript 'get_audiences.R' 30
-      - name: "Script - Google"
-        run: Rscript 'selenium.R'
       - name: "Script - Update Dashboard"
         run: Rscript 'start.R'
       - name: "Commit"
