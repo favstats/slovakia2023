@@ -1,0 +1,3 @@
+contile.services.mozilla.com:HSTS	0	19614	1726222599993,1,0
+www.facebook.com^partitionKey=%28http%2Cfacebook.com%29:HSTS	0	19614	1710238600736,1,0
+location.services.mozilla.com:HSTS	0	19614	1726222599824,1,1
