@@ -407,8 +407,9 @@ the_dat <- tobeextracted %>%
 
 old_dat <- readRDS(paste0("lifelong/",cntry_str, ".rds"))
 
-the_dat <- the_dat %>% bind_rows(old_dat) %>% distinct() %>% 
-  mutate(amount_spent_eur = readr::parse_number(amount_spent_eur)) %>% 
+the_dat <- the_dat %>% 
+  mutate(amount_spent_eur = readr::parse_number(as.character(amount_spent_eur))) %>% 
+  bind_rows(old_dat) %>% distinct() %>% 
   filter(amount_spent_eur != 100) %>% 
   add_count(page_id, page_name, disclaimer) %>%
   arrange(desc(amount_spent_eur)) %>% 
@@ -417,6 +418,7 @@ the_dat <- the_dat %>% bind_rows(old_dat) %>% distinct() %>%
   summarize(amount_spent_eur = sum(amount_spent_eur),
             disclaimer = disclaimer[1]) %>% 
   ungroup()
+
 
 saveRDS(the_dat, paste0("lifelong/",cntry_str, ".rds"))
 
