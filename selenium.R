@@ -164,7 +164,7 @@ retrieve_spend_daily <- function(id, the_date, cntry = "SK") {
 # daily_spending <- readRDS("data/daily_spending.rds")
 # Apr 17, 2023 - May 16, 2023
 # 13 February 2023
-timelines <- seq.Date(as.Date("2023-09-10"), lubridate::today()-lubridate::days(1), by = "day")
+timelines <- seq.Date(as.Date("2023-08-01"), lubridate::today()-lubridate::days(1), by = "day")
 
 # 
 daily_spending_old <- readRDS("data/ggl_daily_spending.rds")
