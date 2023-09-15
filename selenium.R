@@ -77,7 +77,9 @@ ggl_spend <- gglstats   %>%
     T ~ NA_character_
   )) %>%
   filter(!(str_detect(Advertiser_Name, "Slovenská demokratická|FDP|Gleichheitspartei|Nieuw-Vlaamse|SP Digital LLC|MURRAY|REVOLT|Angelenos Against Higher Property Taxes|ITALIA|Volt Deutschland"))) %>%
-  drop_na(party1) 
+  drop_na(party1)  %>% 
+  bind_rows(readRDS("data/ggl_spend.rds")) %>% 
+  distinct(Advertiser_ID, .keep_all = T)
 
 saveRDS(ggl_spend, "data/ggl_spend.rds")
 
