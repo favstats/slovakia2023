@@ -423,8 +423,10 @@ ggl_spend <- readRDS("../data/ggl_spend.rds") %>%
 
 
 ```{r}
-ggl_all <- readRDS("../data/ggl_all.rds")
-ggl_all7 <- readRDS("../data/ggl_all7.rds")
+ggl_all <- readRDS("../data/ggl_all.rds") %>% 
+  arrange(desc(parse_number(`Total Spend`))) 
+ggl_all7 <- readRDS("../data/ggl_all7.rds") %>% 
+  arrange(desc(parse_number(`Total Spend`))) 
 
 sum30_ggl <- ggl_all %>% 
     mutate(total_spend_formatted = parse_number(`Total Spend`)) %>% 

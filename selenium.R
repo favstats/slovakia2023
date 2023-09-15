@@ -101,10 +101,8 @@ page_df <- browser_df %>%
   glimpse
 
 # remDr <- rD$client
-# urlss
-page_df <- browser_df
 
-retrieve_spend_daily <- function(id, the_date, cntry = "NL") {
+retrieve_spend_daily <- function(id, the_date, cntry = "SK") {
   
   # id <- "AR18091944865565769729"
   url <- glue::glue("https://adstransparency.google.com/advertiser/{id}?political&region={cntry}&start-date={the_date}&end-date={the_date}&topic=political&hl=en")
@@ -166,7 +164,7 @@ retrieve_spend_daily <- function(id, the_date, cntry = "NL") {
 # daily_spending <- readRDS("data/daily_spending.rds")
 # Apr 17, 2023 - May 16, 2023
 # 13 February 2023
-timelines <- seq.Date(as.Date("2023-08-01"), lubridate::today()-lubridate::days(1), by = "day")
+timelines <- seq.Date(as.Date("2023-09-10"), lubridate::today()-lubridate::days(1), by = "day")
 
 # 
 daily_spending_old <- readRDS("data/ggl_daily_spending.rds")
@@ -175,7 +173,7 @@ daily_spending_old <- readRDS("data/ggl_daily_spending.rds")
 daily_spending <- expand_grid(unique(ggl_spend$Advertiser_ID), timelines) %>%
   set_names(c("advertiser_id", "timelines")) %>%
   anti_join(daily_spending_old %>% select(advertiser_id, timelines = date)) %>%
-  # slice(1) %>%
+  # slice(10) %>%
   split(1:nrow(.)) %>%
   map_dfr_progress(~{retrieve_spend_daily(.x$advertiser_id, .x$timelines)})
 
@@ -191,7 +189,7 @@ saveRDS(daily_spending %>% bind_rows(daily_spending_old) %>% distinct(), file = 
 
 dates <- read_csv("data/dates.csv")
 
-retrieve_spend_custom <- function(id, from, to, cntry = "NL") {
+retrieve_spend_custom <- function(id, from, to, cntry = "SK") {
   
   # id <- "AR18091944865565769729"
   url <- glue::glue("https://adstransparency.google.com/advertiser/{id}?political&region={cntry}&start-date={from}&end-date={to}&hl=en")

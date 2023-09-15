@@ -19,13 +19,13 @@ title_txt[which(str_detect(title_txt, "title"))] <-  glue::glue('  title: "{sets
 write_lines(title_txt, "_site/_quarto.yml")
 
 # tf <- Sys.getenv("TIMEFRAME")c
-tf <- "7"
+tf <- "30"
 # print(tf)
 
 jb <- get_targeting("7860876103", timeframe = glue::glue("LAST_90_DAYS"))
 
 new_ds <- jb %>% arrange(ds) %>% slice(1) %>% pull(ds)
-new_ds <- "2023-08-11"
+# new_ds <- "2023-08-11"
 
 latest_elex <- readRDS(paste0("data/election_dat", tf, ".rds"))
 
