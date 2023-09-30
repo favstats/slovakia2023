@@ -48,7 +48,12 @@ wtm_data <- read_csv("data/wtm-advertisers-sk-2023-09-13T19_30_21.053Z.csv") %>%
   select(page_id = advertisers_platforms.advertiser_platform_ref,
          page_name = name, party = entities.short_name)  %>%
   mutate(page_id = as.character(page_id)) %>%
-  filter(!(party %in% c("Ost", "Méd", "Vlá"))) #%>% #View
+  filter(!(party %in% c("Ost", "Méd", "Vlá"))) %>%
+filter(str_detect(page_name, "Kaufland", negate = T))
+
+
+
+#View
   # count(party, sort = T)  %>%
   # mutate(party = case_when(
   #   str_detect(party, "VVD") ~ "VVD",
