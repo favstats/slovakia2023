@@ -19,8 +19,13 @@ title_txt[which(str_detect(title_txt, "title"))] <-  glue::glue('  title: "{sets
 write_lines(title_txt, "_site/_quarto.yml")
 
 # tf <- Sys.getenv("TIMEFRAME")c
-tf <- "30"
+
 # print(tf)
+
+if(Sys.info()[["sysname"]]=="Windows"){
+  ### CHANGE ME WHEN LOCAL!
+  tf <- "30"
+}
 
 jb <- get_targeting("7860876103", timeframe = glue::glue("LAST_90_DAYS"))
 
@@ -83,8 +88,8 @@ filter(str_detect(page_name, "Kaufland", negate = T))
 # wtm_data %>%
 #   filter(party == "ZL")
 # 
-wtm_data %>%
-  count(party, sort = T)
+# wtm_data %>%
+#   count(party, sort = T)
 
 # 338750440106782
 

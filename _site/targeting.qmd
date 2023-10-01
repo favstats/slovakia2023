@@ -76,14 +76,13 @@ election_dat30 <- readRDS("../data/election_dat30.rds") %>%
       # left_join(all_dat) %>% 
     rename(internal_id = page_id) %>% 
   filter(party != "And")  %>% 
-  filter(is.na(no_data))
-
+  filter(is.na(no_data)) 
 
 election_dat7 <- readRDS("../data/election_dat7.rds") %>%
       # left_join(all_dat) %>% 
     rename(internal_id = page_id) %>% 
   filter(party != "And")  %>% 
-  filter(is.na(no_data))
+  filter(is.na(no_data)) 
 
 # saveRDS(election_dat30, "../data/election_dat30.rds")
 # saveRDS(election_dat7, "../data/election_dat7.rds")
@@ -109,6 +108,9 @@ if(the_currency == "EUR"){
   currency_symbol <- "CURRENCY"
 }
 
+# 
+# election_dat30 %>%
+#   filter(party == "SMER") %>% filter(!is_exclusion)
 
 ```
 
@@ -222,7 +224,7 @@ library(dplyr)
 plot_geography <- function(x) {
   # x <- col_each30
   gg <- x %>%
-    filter(perc >= 0.5) %>%
+    filter(perc >= 0.2) %>%
     add_count(party, target) %>%
     mutate(target = case_when(
       target == "custom_audience" ~ "Custom Audiences",
@@ -277,6 +279,9 @@ plot_geography <- function(x) {
   charts
 }
 
+
+# col_each30 %>% 
+#   filter(party == "SMER")
 ```
 
 
@@ -445,6 +450,20 @@ Here, we show the *top targeted audiences* for each party for the "detailed" tar
 
 ```{r}
 
+byparty30 <- election_dat30 %>% 
+  distinct(internal_id, party, .keep_all = T) %>% 
+  group_by(party) %>% 
+  summarize(total_spenderino = sum(total_spend_formatted)) %>% 
+  ungroup() %>% 
+  select(party, total_spenderino)
+
+byparty7 <- election_dat7 %>% 
+  distinct(internal_id, party, .keep_all = T) %>% 
+  group_by(party) %>% 
+  summarize(total_spenderino = sum(total_spend_formatted)) %>% 
+  ungroup() %>% 
+  select(party, total_spenderino)
+
 interest_targeting30 <-  election_dat30 %>% 
     mutate(total_spend = total_spend_formatted) %>% 
     filter(type == "detailed") %>%
@@ -472,8 +491,9 @@ contested_dat30 <- interest_targeting30 %>%
   filter(total_spend >= 1) %>%
   # add_count(value) %>% 
   # filter(n >= 5) %>% 
+  left_join(byparty30) %>% 
   group_by(party) %>% 
-  mutate(total_spenderino = sum(total_spend)) %>% 
+  # mutate(total_spenderino = sum(total_spend)) %>% 
   mutate(perc = total_spend/total_spenderino) %>%
   mutate(value = str_remove_all(value, "INTERESTS: |DEMOGRAPHICS: |BEHAVIORS: ")) #%>%
   # mutate(value = str_replace_all(value, " \\s*\\([^\\)]+\\)", ""))
@@ -506,9 +526,9 @@ contested_dat7 <- interest_targeting7 %>%
   # filter(total_spend >= 40000) %>% 
   filter(total_spend >= 1) %>%
   # add_count(value) %>% 
-  # filter(n >= 5) %>% 
+  left_join(byparty7) %>% 
   group_by(party) %>% 
-  mutate(total_spenderino = sum(total_spend)) %>% 
+  # mutate(total_spenderino = sum(total_spend)) %>% 
   mutate(perc = total_spend/total_spenderino) %>%
   mutate(value = str_remove_all(value, "INTERESTS: |DEMOGRAPHICS: |BEHAVIORS: ")) #%>%
   # mutate(value = str_replace_all(value, " \\s*\\([^\\)]+\\)", ""))
@@ -1114,7 +1134,7 @@ The graphs below show targeting by age groups and how much percentage of party b
 ```{r, fig.width= 10, fig.height=7, dpi = 300}
 get_targ_perc <- function(x, var) {
     
-x <<- x
+# x <<- x
 total_sppppeen <- x %>% 
   mutate(total_spend = total_spend_formatted) %>%
   distinct(internal_id, .keep_all = T)  %>%
