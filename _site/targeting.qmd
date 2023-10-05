@@ -72,13 +72,13 @@ source("../utils.R")
 
 
 ```{r}
-election_dat30 <- readRDS("../data/election_dat30.rds") %>%
+election_dat30 <- readRDS("../historic/2023-10-02/30.rds") %>%
       # left_join(all_dat) %>% 
     rename(internal_id = page_id) %>% 
   filter(party != "And")  %>% 
   filter(is.na(no_data)) 
 
-election_dat7 <- readRDS("../data/election_dat7.rds") %>%
+election_dat7 <- readRDS("../historic/2023-10-02/7.rds") %>%
       # left_join(all_dat) %>% 
     rename(internal_id = page_id) %>% 
   filter(party != "And")  %>% 
@@ -110,8 +110,42 @@ if(the_currency == "EUR"){
 
 # 
 # election_dat30 %>%
-#   filter(party == "SMER") %>% filter(!is_exclusion)
+#   filter(party == "SMER") %>% 
+#   filter(type == "location") %>% 
+#   filter(location_type == "countries") %>% 
+#   arrange(internal_id)
 
+# %>% filter(!is_exclusion)
+
+
+# only_tags %>%
+#         filter(party == "SMER") %>% 
+#         filter(type == "location") %>%
+#         # count(location_type, internal_id, sort  =T)
+#         group_by(internal_id, location_type) %>%
+#         filter(total_spend_pct == max(total_spend_pct)) %>%
+#         slice(1) %>%
+#         ungroup() %>%
+#         # mutate(total_spend = readr::parse_number(total_spend_formatted)) %>%
+#         mutate(total_spend = ifelse(total_spend == 100, 50, total_spend)) %>%
+#         mutate(spend_per = total_spend * total_spend_pct) %>%
+#         select(internal_id, spend_per, location_type) %>%
+#         arrange(desc(spend_per)) %>%
+#         group_by(location_type) %>%
+#         summarize(spend_per = sum(spend_per)) %>%
+#         rename(target = location_type)
+# 
+# 
+# 
+# only_tags %>%
+#         filter(party == "SMER") %>% 
+#         filter(type == "location") %>% 
+#         filter(location_type == "CITY")  %>%
+#         mutate(total_spend = ifelse(total_spend == 100, 50, total_spend)) %>%
+#         mutate(spend_per = total_spend * total_spend_pct) %>%
+#         group_by(internal_id) %>% 
+#         arrange(desc(spend_per)) %>% 
+#         slice(1) %>% ungroup() %>% summarize(spend_per = sum(spend_per))
 ```
 
 This section shows spending per *targeting criteria* used by political parties to reach citizens in the run-up to the `r sets$election_title` for the latest available data. It only includes targeting on Meta platforms (Facebook and Instagram), which offers the most detailed targeting options to political advertisers.
@@ -137,6 +171,8 @@ How much did campaigns spend on different targeting methods? The graphs below sh
 
 
 ```{r, fig.width=8, fig.height=5, dpi=300}
+# debugonce(calc_targeting)
+
 coltototal30 <- election_dat30 %>% 
     mutate(total_spend = total_spend_formatted) %>% 
     filter(main_currency == the_currency) %>% 
