@@ -580,12 +580,15 @@ contested_dat7 <- interest_targeting7 %>%
 
 ```{r, fig.width=16, fig.height=12, dpi=300}
 
+
 generate_plots <- function(data, exclusion = F) {
   
   if(exclusion){
     wooord <- "on ads excluding"
+    wooord2 <- "excluding"
   } else {
     wooord <- "on ads including"
+    wooord2 <- "targeting"
   }
   
   gg <- data %>%
@@ -606,7 +609,7 @@ generate_plots <- function(data, exclusion = F) {
              color = the_color) %>%
         hc_plotOptions(bar = list(horizontal = TRUE, stacking = "normal")) %>%
         hc_yAxis(
-          title = list(text = "% Party Budget spent on targeting method"),
+          title = list(text = paste0("% Party Budget spent on ", wooord2, " audience")),
           max = max(.x$perc)#,
           # min = 0
         ) %>%
@@ -616,7 +619,7 @@ generate_plots <- function(data, exclusion = F) {
           pointFormat = paste0(
             "<b>{point.value}</b><br>% of Total Budget Spent: {point.y:.1f}%<br>Spend a total of ",
             currency_symbol,
-            "{point.spend_perlab} on this method."
+            "{point.spend_perlab} ", wooord, " this audience."
           ),
           headerFormat = ""
         ) %>%
@@ -634,7 +637,6 @@ generate_plots <- function(data, exclusion = F) {
   # columns <- ggplot2::ggarrange(plots[[1]], plots[[2]], ncol = 2)
   # highcharter::hchart(columns, spacing = list(right = 100))
 }
-
 
 ```
 
